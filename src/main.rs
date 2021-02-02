@@ -7,7 +7,7 @@ use draw::SCHEME;
 
 #[macroquad::main("PBD")]
 async fn main() {
-    let font = load_ttf_font("assets/JetBrainsMono-Regular.ttf").await;
+    //let font = load_ttf_font("assets/JetBrainsMono-Regular.ttf").await;
 
     let mut sim = pbd::Sim::default();
 
@@ -87,7 +87,15 @@ async fn main() {
 
         sim.draw();
 
-        draw_text_ex(
+        draw_text(
+            &get_fps().to_string(),
+            20.0,
+            10.0,
+            24.0,
+            *SCHEME.get("text").unwrap(),
+        );
+
+        /* draw_text_ex(
             &get_fps().to_string(),
             20.0,
             10.0,
@@ -97,7 +105,7 @@ async fn main() {
                 font_scale: 0.4,
                 color: *SCHEME.get("text").unwrap(),
             },
-        );
+        ); */
 
         next_frame().await
     }
