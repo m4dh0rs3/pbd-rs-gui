@@ -1,4 +1,4 @@
-use macroquad::math::Vec2;
+use crate::math_util::Vec2D;
 
 pub(crate) struct Sim {
     pub(crate) balls: Vec<Ball>,
@@ -11,10 +11,10 @@ pub(crate) struct Sim {
 }
 
 pub(crate) struct Env {
-    pub(crate) dt: f32,
+    pub(crate) dt: f64,
 
-    pub(crate) g: f32,
-    pub(crate) air: f32,
+    pub(crate) g: Vec2D,
+    pub(crate) air: f64,
 
     pub(crate) width: i32,
     pub(crate) height: i32,
@@ -22,14 +22,14 @@ pub(crate) struct Env {
 
 #[derive(Clone)]
 pub(crate) struct Ball {
-    pub(crate) pos: Vec2,
-    vel: Vec2,
-    prv: Vec2,
+    pub(crate) pos: Vec2D,
+    pub(crate) vel: Vec2D,
+    prv: Vec2D,
 
-    pub(crate) mass: f32,
-    inv: f32,
+    pub(crate) mass: f64,
+    inv: f64,
 
-    ely: f32,
+    ely: f64,
 }
 
 #[derive(Clone)]
@@ -37,12 +37,12 @@ pub(crate) struct Stick {
     pub(crate) i: usize,
     pub(crate) j: usize,
 
-    len: f32,
-    sfn: f32,
+    pub(crate) len: f64,
+    sfn: f64,
 }
 
 impl Ball {
-    pub(crate) fn new(pos: Vec2, vel: Vec2, mass: f32, dt: f32) -> Ball {
+    pub(crate) fn new(pos: Vec2D, vel: Vec2D, mass: f64, dt: f64) -> Ball {
         Ball {
             pos,
             vel,
@@ -59,37 +59,37 @@ impl Ball {
 
         self.pos = self.prv;
 
-        let force_g = Vec2::new(
-            env.dt * self.inv * env.air,
-            env.dt * self.inv * env.air * env.g,
-        );
-
-        self.vel += force_g;
+        self.vel += env.g * (env.dt * self.inv * env.air);
 
         self.prv = self.pos + (self.vel * env.dt);
     }
 
     fn in_box(&mut self, env: &Env) {
-        if self.prv.x > env.width as f32 {
-            self.prv.x = env.width as f32;
+        if self.prv.x > env.width as f64 {
+            self.prv.x = env.width as f64;
             self.vel.x = -self.vel.x.abs() * self.ely
         } else if self.prv.x < 0.0 {
             self.prv.x = 0.0;
             self.vel.x = self.vel.x.abs() * self.ely
         }
 
-        if self.prv.y > env.height as f32 {
-            self.prv.y = env.height as f32;
+        if self.prv.y > env.height as f64 {
+            self.prv.y = env.height as f64;
             self.vel.y = -self.vel.y.abs() * self.ely
         } else if self.prv.y < 0.0 {
             self.prv.y = 0.0;
             self.vel.y = self.vel.y.abs() * self.ely
         }
     }
+
+    pub(crate) fn fix(&mut self) {
+        self.mass = 0.0;
+        self.inv = 0.0;
+    }
 }
 
 impl Stick {
-    pub(crate) fn new(i: usize, j: usize, len: f32) -> Stick {
+    pub(crate) fn new(i: usize, j: usize, len: f64) -> Stick {
         Stick {
             i,
             j,
@@ -102,18 +102,18 @@ impl Stick {
         let ball = (balls[self.i].clone(), balls[self.j].clone());
 
         if !(ball.0.inv == 0.0 && ball.1.inv == 0.0) {
-            let diff: Vec2 = ball.0.prv - ball.1.prv;
-            let len = diff.length();
-            let off: Vec2 = (diff / len) * (len - self.len);
+            let diff: Vec2D = ball.0.prv - ball.1.prv;
+            let len = diff.abs();
+            let off: Vec2D = (diff / len) * (len - self.len);
 
-            balls[self.i].prv -= (off * ball.0.inv / (ball.0.inv + ball.1.inv)) * self.sfn;
-            balls[self.j].prv += (off * ball.1.inv / (ball.0.inv + ball.1.inv)) * self.sfn;
+            balls[self.i].prv -= (off * (ball.0.inv / (ball.0.inv + ball.1.inv))) * self.sfn;
+            balls[self.j].prv += (off * (ball.1.inv / (ball.0.inv + ball.1.inv))) * self.sfn;
         }
     }
 }
 
 impl Sim {
-    fn new(speed: u8, resolve: u8, dt: f32, g: f32, air: f32, width: i32, height: i32) -> Sim {
+    fn new(speed: u8, resolve: u8, dt: f64, g: Vec2D, air: f64, width: i32, height: i32) -> Sim {
         Sim {
             speed,
             resolve,
@@ -127,7 +127,9 @@ impl Sim {
         self.balls.push(ball);
     }
 
-    pub(crate) fn connect(&mut self, i: usize, j: usize, len: Option<f32>) {
+    pub(crate) fn connect(&mut self, i: usize, j: usize, len: Option<f64>) {
+        assert_ne!(i, j);
+
         self.sticks.push(Stick::new(
             i,
             j,
@@ -138,28 +140,28 @@ impl Sim {
                     .get(i)
                     .unwrap()
                     .pos
-                    .distance(self.balls.get(j).unwrap().pos),
+                    .dist(&self.balls.get(j).unwrap().pos),
             },
         ));
     }
 
     pub(crate) fn step(&mut self) {
-        for w in 0..self.speed {
+        for _w in 0..self.speed {
             for ball in self.balls.iter_mut() {
                 ball.step(&self.env);
             }
-        }
 
-        for r in 0..self.resolve {
-            for stick in self.sticks.iter_mut() {
-                stick.project(&mut self.balls);
+            for _r in 0..self.resolve {
+                for stick in self.sticks.iter_mut() {
+                    stick.project(&mut self.balls);
+                }
             }
         }
     }
 }
 
 impl Env {
-    fn new(dt: f32, g: f32, air: f32, width: i32, height: i32) -> Env {
+    fn new(dt: f64, g: Vec2D, air: f64, width: i32, height: i32) -> Env {
         Env {
             dt,
 
@@ -191,7 +193,7 @@ impl Default for Env {
         Env {
             dt: 0.6,
 
-            g: 9.81,
+            g: Vec2D::new(0.0, 9.81),
             air: 1.0,
 
             width: 960,

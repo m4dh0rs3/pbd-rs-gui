@@ -25,9 +25,9 @@ impl Sim {
 impl Ball {
     fn draw(&self) {
         draw_circle(
-            self.pos.x,
-            self.pos.y,
-            self.mass * 0.5,
+            self.pos.x as f32,
+            self.pos.y as f32,
+            self.mass as f32 * 0.5,
             *SCHEME.get("ball").unwrap(),
         );
     }
@@ -40,10 +40,10 @@ impl Stick {
             balls.get(self.j).unwrap().pos,
         );
         draw_line(
-            balls.0.x,
-            balls.0.y,
-            balls.1.x,
-            balls.1.y,
+            balls.0.x as f32,
+            balls.0.y as f32,
+            balls.1.x as f32,
+            balls.1.y as f32,
             3.0,
             *SCHEME.get("stick").unwrap(),
         );
